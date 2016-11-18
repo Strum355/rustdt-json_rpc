@@ -20,5 +20,5 @@ futures = "0.1.3"
 rustdt_util = { version = "0.2.1", features = ["test_utils"] }
 
 [lib]
-name = "melnorme_jsonrpc"
+name = "rustdt_jsonrpc"
 path = "src/jsonrpc.rs"
