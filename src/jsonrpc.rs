@@ -14,7 +14,7 @@
 extern crate serde_json;
 extern crate serde;
 
-extern crate melnorme_util as util;
+extern crate rustdt_util as util;
 pub extern crate futures;
 
 pub mod json_util;
