@@ -11,7 +11,6 @@ use std::thread;
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::SendError;
-use std::io;
 
 #[allow(unused_imports)]
 use util::core::*;
@@ -189,21 +188,12 @@ impl AgentInnerRunner {
 
 /* -----------------  ----------------- */
 
-/// Handle a message simply by writing to a io::Write
-pub struct IoWriteHandler<T: io::Write>(pub T);
-
-impl<T : io::Write> MessageWriter for IoWriteHandler<T> {
-    fn write_message(&mut self, msg: &str) -> Result<(), GError> {
-        try!(self.0.write_all(msg.as_bytes()));
-        Ok(())
-    }
-}
-
 #[test]
 fn test_OutputAgent() {
     
     use util::tests::*;
-    
+    use service_util::IoWriteHandler;
+   
     let output = vec![];
     let mut agent = OutputAgent::start_with_provider(move || IoWriteHandler(output));
     
@@ -242,6 +232,8 @@ pub fn test_OutputAgent_API() {
     use std::net::TcpStream;
     use std::sync::Mutex;
     use std::io::Read;
+    use std::io;
+    use service_util::IoWriteHandler;
     
     // Test with Vec<u8>
     let mut agent = OutputAgent::start_with_provider(|| IoWriteHandler(Vec::<u8>::new()));

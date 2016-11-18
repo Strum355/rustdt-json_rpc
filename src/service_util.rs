@@ -6,6 +6,7 @@
 // except according to those terms.
 
 use std::result::Result;
+use std::io;
 
 pub use util::core::GError;
 pub use util::core::GResult;
@@ -15,6 +16,27 @@ pub trait MessageReader {
     fn read_next(&mut self) -> Result<String, GError>;
 }
 
+/// Read a message by reading lines from a BufRead
+pub struct ReadLineMessageReader<T: io::BufRead>(pub T);
+
+impl<T : io::BufRead> MessageReader for ReadLineMessageReader<T> {
+    fn read_next(&mut self) -> Result<String, GError> {
+        let mut result = String::new();
+        try!(self.0.read_line(&mut result));
+        Ok(result)
+    }
+}
+
 pub trait MessageWriter {
     fn write_message(&mut self, msg: &str) -> Result<(), GError>;
+}
+
+/// Handle a message simply by writing to a io::Write
+pub struct IoWriteHandler<T: io::Write>(pub T);
+
+impl<T : io::Write> MessageWriter for IoWriteHandler<T> {
+    fn write_message(&mut self, msg: &str) -> Result<(), GError> {
+        try!(self.0.write_all(msg.as_bytes()));
+        Ok(())
+    }
 }
