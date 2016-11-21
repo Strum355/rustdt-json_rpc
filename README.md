@@ -17,7 +17,7 @@ method handling.
 ### Usage:
 
 See full server/client example here:
-https://github.com/RustDT/rustdt-json_rpc/blob/master/tests/example.rs
+ * [tests/example.rs](/tests/example.rs)
 
 ### Projects using rustdt_json_rpc:
  * [RustLSP](https://github.com/RustDT/RustLSP)
