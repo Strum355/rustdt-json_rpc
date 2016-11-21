@@ -222,7 +222,7 @@ fn test_OutputAgent() {
     
     agent.shutdown_and_join();
     
-    assert_equal(String::from_utf8(unwrap_ArcMutex(output)).unwrap(), "First response.".to_string());
+    assert_equal(String::from_utf8(unwrap_ArcMutex(output)).unwrap(), "First response.\n".to_string());
 }
 
 // The following code we don't want to run, we just want to test that it compiles
