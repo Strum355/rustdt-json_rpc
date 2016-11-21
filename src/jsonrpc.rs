@@ -209,7 +209,7 @@ pub struct NullRequestHandler;
 
 impl RequestHandler for NullRequestHandler {
     fn handle_request(
-        &mut self, request_method: &str, request_params: RequestParams, completable: ResponseCompletable
+        &mut self, _request_method: &str, _request_params: RequestParams, completable: ResponseCompletable
     ) {
         completable.complete_with_error(error_JSON_RPC_MethodNotFound());
     }
