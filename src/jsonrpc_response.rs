@@ -27,6 +27,17 @@ pub struct Response {
     pub result_or_error: ResponseResult,
 }
 
+impl Response {
+    pub fn new_result(id: Id, result: Value) -> Response {
+        Response { id : id, result_or_error : ResponseResult::Result(result) }
+    }
+    
+    pub fn new_error(id: Id, error: RequestError) -> Response {
+        Response { id : id, result_or_error : ResponseResult::Error(error) }
+    }
+}
+
+
 /// The result-or-error part of JSON RPC response.
 #[derive(Debug, PartialEq, Clone)]
 pub enum ResponseResult {
@@ -34,10 +45,12 @@ pub enum ResponseResult {
     Error(RequestError)
 }
 
-
-impl Response {
-    pub fn new_result(id: Id, result: Value) -> Response {
-        Response { id : id, result_or_error : ResponseResult::Result(result) }
+impl ResponseResult {
+    pub fn unwrap_result(self) -> Value {
+        match self {
+        	ResponseResult::Result(value) => value,
+        	_ => panic!("Expected a ResponseResult::Result")
+        }
     }
     
     pub fn new_error(id: Id, error: RequestError) -> Response {

@@ -3,7 +3,7 @@
 
 #![cfg(test)]
 
-use serde;
+extern crate serde;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Point {
@@ -11,16 +11,9 @@ pub struct Point {
     pub y: i32,
 }
 
-pub fn new_sample_params(x: i32, y: i32) -> Point {
-    Point { x : x, y : y }
-}
-
-#[test]
-fn test_Point() {
-    use json_util::test_util::*;
-    
-    test_serde(&Point{ x: 12, y : 34});
-}
+//pub fn new_sample_params(x: i32, y: i32) -> Point {
+//    Point { x : x, y : y }
+//}
 
 pub enum PointField {
     X,

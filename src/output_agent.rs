@@ -192,10 +192,10 @@ impl AgentInnerRunner {
 fn test_OutputAgent() {
     
     use util::tests::*;
-    use service_util::IoWriteHandler;
+    use service_util::WriteLineMessageWriter;
    
     let output = vec![];
-    let mut agent = OutputAgent::start_with_provider(move || IoWriteHandler(output));
+    let mut agent = OutputAgent::start_with_provider(move || WriteLineMessageWriter(output));
     
     agent.submit_task(new(|msg_writer| {
         msg_writer.write_message("First responde.").unwrap();
@@ -212,7 +212,7 @@ fn test_OutputAgent() {
     let mut agent = OutputAgent::start(move |inner_runner: AgentInnerRunner| {
         inner_runner.enter_agent_loop(&mut move |task: OutputAgentTask| {
             let mut lock : std::sync::MutexGuard<Vec<u8>> = output2.lock().unwrap();
-            task(&mut IoWriteHandler(&mut *lock));
+            task(&mut WriteLineMessageWriter(&mut *lock));
         });
     });
     
@@ -233,14 +233,14 @@ pub fn test_OutputAgent_API() {
     use std::sync::Mutex;
     use std::io::Read;
     use std::io;
-    use service_util::IoWriteHandler;
+    use service_util::WriteLineMessageWriter;
     
     // Test with Vec<u8>
-    let mut agent = OutputAgent::start_with_provider(|| IoWriteHandler(Vec::<u8>::new()));
+    let mut agent = OutputAgent::start_with_provider(|| WriteLineMessageWriter(Vec::<u8>::new()));
     agent.shutdown_and_join();
     
     // Test with StdOut
-    let mut agent = OutputAgent::start_with_provider(|| IoWriteHandler(std::io::stdout()));
+    let mut agent = OutputAgent::start_with_provider(|| WriteLineMessageWriter(std::io::stdout()));
     agent.shutdown_and_join();
     
     
@@ -250,7 +250,7 @@ pub fn test_OutputAgent_API() {
         let mut stdoutlock = stdout.lock();
         
         inner_runner.enter_agent_loop(&mut |task: OutputAgentTask| {
-            task(&mut IoWriteHandler(&mut stdoutlock));
+            task(&mut WriteLineMessageWriter(&mut stdoutlock));
         });
     });
     agent.shutdown_and_join();
@@ -262,7 +262,7 @@ pub fn test_OutputAgent_API() {
     let mut agent = OutputAgent::start(move |inner_runner: AgentInnerRunner| {
         inner_runner.enter_agent_loop(&mut |task: OutputAgentTask| {
             let mut stream = stream2.lock().expect("Re-entered mutex lock");
-            task(&mut IoWriteHandler(&mut *stream));
+            task(&mut WriteLineMessageWriter(&mut *stream));
         });
     });
     agent.shutdown_and_join();

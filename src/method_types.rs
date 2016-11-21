@@ -62,6 +62,22 @@ pub enum RequestResult<RET, RET_ERROR> {
     RequestError(RequestError),
 }
 
+impl<RET, RET_ERROR> RequestResult<RET, RET_ERROR> {
+    pub fn unwrap_result(self) -> MethodResult<RET, RET_ERROR> {
+        match self {
+        	RequestResult::MethodResult(method_result) => method_result,
+        	_ => panic!("Expected a RequestResult::MethodResult")
+        }
+    }
+    
+    pub fn unwrap_error(self) -> RequestError {
+        match self {
+        	RequestResult::RequestError(request_error) => request_error, 
+        	_ => panic!("Expected a RequestResult::RequestError")
+        }
+    }
+}
+
 impl<
     RET : serde::Deserialize, 
     RET_ERROR : serde::Deserialize, 

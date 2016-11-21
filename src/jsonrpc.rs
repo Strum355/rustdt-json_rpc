@@ -41,6 +41,7 @@ use futures::BoxFuture;
 use futures::Complete;
 
 use service_util::MessageReader;
+use service_util::MessageWriter;
 use jsonrpc_common::*;
 use jsonrpc_message::*;
 use jsonrpc_request::*;
@@ -100,6 +101,15 @@ pub struct EndpointHandler {
 }
 
 impl EndpointHandler {
+    
+    pub fn create_with_output<WRITER>(msg_writer: WRITER, request_handler: Box<RequestHandler>) 
+        -> EndpointHandler
+    where 
+        WRITER : MessageWriter + 'static + Send, 
+    {
+        let output_agent = OutputAgent::start_with_provider(|| msg_writer);
+        Self::create_with_output_agent(output_agent, request_handler)
+    }
     
     pub fn create_with_output_agent(output_agent: OutputAgent, request_handler: Box<RequestHandler>) 
         -> EndpointHandler
@@ -476,8 +486,7 @@ mod tests_ {
     
     use json_util::JsonObject;
     use json_util::test_util::to_json;
-    use output_agent::IoWriteHandler;
-    use output_agent::OutputAgent;
+    use service_util::WriteLineMessageWriter;
     
     use futures::task::Unpark;
     use futures::Async;
@@ -582,8 +591,7 @@ mod tests_ {
         
         // --- Endpoint:
         let output = vec![];
-        let output_agent = OutputAgent::start_with_provider(move || IoWriteHandler(output));
-        let mut eh = EndpointHandler::create_with_output_agent(output_agent, new(request_handler));
+        let mut eh = EndpointHandler::create_with_output(WriteLineMessageWriter(output), new(request_handler));
         
         // Test ResponseCompletable - missing id for notification method
         let completable = ResponseCompletable::new(None, new(|_| {}));
@@ -645,3 +653,5 @@ mod tests_ {
     }
     
 }
+
+
