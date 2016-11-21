@@ -68,7 +68,6 @@ use output_agent::OutputAgentTask;
 
 
 /// A JSON-RPC Server-role than can send responses to requests.
-/// TODO: Client role (send requests as well)
 /// TODO: review and clarify shutdown semantics
 #[derive(Clone)]
 pub struct EndpointOutput {
@@ -204,6 +203,16 @@ pub trait RequestHandler {
     fn handle_request(
         &mut self, request_method: &str, request_params: RequestParams, completable: ResponseCompletable
     );
+}
+
+pub struct NullRequestHandler;
+
+impl RequestHandler for NullRequestHandler {
+    fn handle_request(
+        &mut self, request_method: &str, request_params: RequestParams, completable: ResponseCompletable
+    ) {
+        completable.complete_with_error(error_JSON_RPC_MethodNotFound());
+    }
 }
 
 /// A completable for a JSON-RPC request. This is an object that must be "completed", 

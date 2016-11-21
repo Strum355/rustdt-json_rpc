@@ -28,6 +28,7 @@ use jsonrpc::method_types::MethodResult;
 use jsonrpc::EndpointHandler;
 use jsonrpc::EndpointOutput;
 use jsonrpc::RequestFuture;
+use jsonrpc::NullRequestHandler;
 use jsonrpc::map_request_handler::MapRequestHandler;
 use jsonrpc::output_agent::OutputAgent;
 use jsonrpc::service_util::{WriteLineMessageWriter, ReadLineMessageReader};
@@ -56,10 +57,12 @@ pub fn test_client_server_communication() {
     let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let local_addr = listener.local_addr().unwrap();
     
+    // Spawn thread to handle server requests
     thread::spawn(|| {
         run_server_listener(listener)
     });
     
+    // Now prepare client connection
     let stream = TcpStream::connect(local_addr).unwrap();
     
     let msg_writer = WriteLineMessageWriter(stream.try_clone().expect("Failed to clone stream"));
@@ -67,21 +70,28 @@ pub fn test_client_server_communication() {
     let mut output = EndpointOutput::start_with(output_agent);
     
     let output2 = output.clone();
+    // Create a thread to handle the client endpoint
     thread::spawn(|| {
-        let request_handler = MapRequestHandler::new();
+        // Note that client endpoint can act as a server too, it can also serve requests.
+        // But in this example request_handler is set up to error on any request.
+        let request_handler = NullRequestHandler{};
         let endpoint = EndpointHandler::create(output2, Box::new(request_handler));
         let mut msg_reader = ReadLineMessageReader(BufReader::new(stream));
         endpoint.run_message_read_loop(&mut msg_reader).ok();
     });
     
     let params = Point{ x: 10, y: 20};
-    // serde_json deserialize/serialize will be applied to params:
+    // Send the RPC request.
+    // Note serde_json deserialize/serialize will be applied to params:
     let future = output.send_request("my_method", params);
-    let future : RequestFuture<String, ()> = future.unwrap(); // todo: error checking
+    let future : RequestFuture<String, ()> = future.expect("Failed to send RPC request to for `my_method`.");
     
     let response_result = future.wait().unwrap();
     let result : String = response_result.unwrap_result().unwrap();
     assert_eq!(result, "Got params: x: 10, y: 20.".to_string());
+    
+    // shutdown output
+    output.shutdown();
 }
 
 fn run_server_listener(listener: TcpListener) {

@@ -87,9 +87,9 @@ impl MapRequestHandler {
 
 impl RequestHandler for MapRequestHandler {
     
-    fn handle_request(&mut self, request_method: &str, request_params: RequestParams, 
-        completable: ResponseCompletable) 
-    {
+    fn handle_request(
+        &mut self, request_method: &str, request_params: RequestParams, completable: ResponseCompletable
+    ) {
         self.do_invoke_method(request_method, completable, request_params);
     }
     
