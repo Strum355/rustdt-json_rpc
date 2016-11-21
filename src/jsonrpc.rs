@@ -6,6 +6,19 @@
 // except according to those terms.
 
 
+
+/*!
+
+### JSON-RPC library.
+
+# Examples:
+
+See full server/client example here:
+https://github.com/RustDT/rustdt-json_rpc/blob/master/tests/example.rs
+
+*/
+
+
 #![allow(non_upper_case_globals)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]

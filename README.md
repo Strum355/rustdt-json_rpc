@@ -14,5 +14,10 @@ method handling.
  * Some minor implementations details: TODO describe more?
    * id support? Must be a JSON String, Null, or Number fitting into a unsigned 64 bits integer. 
 
+### Usage:
+
+See full server/client example here:
+https://github.com/RustDT/rustdt-json_rpc/blob/master/tests/example.rs
+
 ### Projects using rustdt_json_rpc:
  * [RustLSP](https://github.com/RustDT/RustLSP)
