@@ -7,7 +7,7 @@ description = "A JSON-RPC library for Rust"
 repository = "https://github.com/RustDT/rustdt-json_rpc"
 documentation = "https://docs.rs/rustdt-json_rpc"
 license = "Apache-2.0"
-keywords = ["rustdt", "jsonrpc", "json-rpc", "json rpc", "json", "rpc"]
+keywords = ["rustdt", "jsonrpc", "json-rpc", "json_rpc", "json", "rpc"]
 
 [dependencies]
 rustdt_util = "0.2.3"
