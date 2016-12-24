@@ -1,6 +1,6 @@
 [package]
 name = "rustdt-json_rpc"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Bruno Medeiros <bruno.do.medeiros@gmail.com>"]
 
 description = "A JSON-RPC library for Rust"

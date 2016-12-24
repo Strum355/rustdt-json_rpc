@@ -26,7 +26,7 @@ mod tests_sample_types;
 
 use jsonrpc::method_types::MethodResult;
 use jsonrpc::EndpointHandler;
-use jsonrpc::EndpointOutput;
+use jsonrpc::Endpoint;
 use jsonrpc::RequestFuture;
 use jsonrpc::NullRequestHandler;
 use jsonrpc::map_request_handler::MapRequestHandler;
@@ -67,15 +67,15 @@ pub fn test_client_server_communication() {
     
     let msg_writer = WriteLineMessageWriter(stream.try_clone().expect("Failed to clone stream"));
     let output_agent = OutputAgent::start_with_provider(|| msg_writer);
-    let mut output = EndpointOutput::start_with(output_agent);
+    let mut endpoint = Endpoint::start_with(output_agent);
     
-    let output2 = output.clone();
+    let endpoint2 = endpoint.clone();
     // Create a thread to handle the client endpoint
     thread::spawn(|| {
         // Note that client endpoint can act as a server too, it can also serve requests.
         // But in this example request_handler is set up to error on any request.
         let request_handler = NullRequestHandler{};
-        let endpoint = EndpointHandler::create(output2, Box::new(request_handler));
+        let endpoint = EndpointHandler::create(endpoint2, Box::new(request_handler));
         let mut msg_reader = ReadLineMessageReader(BufReader::new(stream));
         endpoint.run_message_read_loop(&mut msg_reader).ok();
     });
@@ -83,15 +83,15 @@ pub fn test_client_server_communication() {
     let params = Point{ x: 10, y: 20};
     // Send the RPC request.
     // Note serde_json deserialize/serialize will be applied to params:
-    let future = output.send_request("my_method", params);
+    let future = endpoint.send_request("my_method", params);
     let future : RequestFuture<String, ()> = future.expect("Failed to send RPC request to for `my_method`.");
     
     let response_result = future.wait().unwrap();
     let result : String = response_result.unwrap_result().unwrap();
     assert_eq!(result, "Got params: x: 10, y: 20.".to_string());
     
-    // shutdown output
-    output.shutdown();
+    // shutdown endpoint
+    endpoint.shutdown();
 }
 
 fn run_server_listener(listener: TcpListener) {
@@ -110,7 +110,7 @@ fn handle_server_connection(stream: TcpStream) {
     request_handler.add_request("my_method", Box::new(my_method));
     
     let msg_writer = WriteLineMessageWriter(stream.try_clone().expect("Failed to clone stream"));
-    let endpoint = EndpointHandler::create_with_output(msg_writer, Box::new(request_handler));
+    let endpoint = EndpointHandler::create_with_writer(msg_writer, Box::new(request_handler));
     
     let mut msg_reader = ReadLineMessageReader(BufReader::new(stream));
     endpoint.run_message_read_loop(&mut msg_reader).ok();

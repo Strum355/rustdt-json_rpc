@@ -67,21 +67,25 @@ use output_agent::OutputAgent;
 use output_agent::OutputAgentTask;
 
 
-/// A JSON-RPC Server-role than can send responses to requests.
+/// A JSON-RPC endpoint that can send requests (Client role), 
+/// and send responses to requests (Server role).
+/// 
+/// This type has (mostly) handle semantics: it can be copied freely, used in multiple threads.
+///
 /// TODO: review and clarify shutdown semantics
 #[derive(Clone)]
-pub struct EndpointOutput {
+pub struct Endpoint {
     id_counter : Arc<Mutex<u64>>,
     pending_requests : Arc<Mutex<HashMap<Id, Complete<ResponseResult>>>>,
     output_agent : Arc<Mutex<OutputAgent>>,
 }
 
-impl EndpointOutput {
+impl Endpoint {
     
     pub fn start_with(output_agent: OutputAgent) 
-        -> EndpointOutput
+        -> Endpoint
     {
-        EndpointOutput {
+        Endpoint {
             id_counter : newArcMutex(0),
             pending_requests : newArcMutex(HashMap::new()),
             output_agent : newArcMutex(output_agent) 
@@ -103,18 +107,18 @@ impl EndpointOutput {
     }
 }
 
-/// Combine an EndpointOutput with a request handler, 
-/// to provide a full Endpoint capable of handling incoming requests from a message reader.
+/// Combine an Endpoint with a request handler, 
+/// to create a complete Endpoint Handler, capable of handling incoming requests from a message reader.
 ///
-/// See also: EndpointOutput
+/// See also: Endpoint
 pub struct EndpointHandler {
-    pub output : EndpointOutput,
+    pub endpoint : Endpoint,
     pub request_handler : Box<RequestHandler>,
 }
 
 impl EndpointHandler {
     
-    pub fn create_with_output<WRITER>(msg_writer: WRITER, request_handler: Box<RequestHandler>) 
+    pub fn create_with_writer<WRITER>(msg_writer: WRITER, request_handler: Box<RequestHandler>) 
         -> EndpointHandler
     where 
         WRITER : MessageWriter + 'static + Send, 
@@ -126,14 +130,14 @@ impl EndpointHandler {
     pub fn create_with_output_agent(output_agent: OutputAgent, request_handler: Box<RequestHandler>) 
         -> EndpointHandler
     {
-        let output = EndpointOutput::start_with(output_agent);
+        let output = Endpoint::start_with(output_agent);
         Self::create(output, request_handler)
     }
     
-    pub fn create(output: EndpointOutput, request_handler: Box<RequestHandler>) 
+    pub fn create(endpoint: Endpoint, request_handler: Box<RequestHandler>) 
         -> EndpointHandler
     {
-        EndpointHandler { output : output, request_handler: request_handler }
+        EndpointHandler { endpoint : endpoint, request_handler: request_handler }
     }
     
     /// Run a message read loop with given message reader.
@@ -150,7 +154,7 @@ impl EndpointHandler {
             let message = match input.read_next() {
                 Ok(ok) => { ok } 
                 Err(error) => { 
-                    endpoint.output.shutdown();
+                    endpoint.endpoint.shutdown();
                     return Err(error);
                 }
             };
@@ -168,19 +172,19 @@ impl EndpointHandler {
             Ok(message) => {
                 match message {
                 	Message::Request(request) => self.handle_incoming_request(request),  
-                	Message::Response(response) => self.output.handle_incoming_response(response),
+                	Message::Response(response) => self.endpoint.handle_incoming_response(response),
                 }
             } 
             Err(error) => {
                 let error = error_JSON_RPC_InvalidRequest(error);
-                submit_error_write_task(&self.output.output_agent, error); 
+                submit_error_write_task(&self.endpoint.output_agent, error); 
             }
         }
     }
 
     /// Handle a well-formed incoming JsonRpc request object
     pub fn handle_incoming_request(&mut self, request: Request) {
-        let output_agent = self.output.output_agent.clone();
+        let output_agent = self.endpoint.output_agent.clone();
         
         let on_response = new(move |response: Option<Response>| {
             if let Some(response) = response {
@@ -406,7 +410,7 @@ pub fn submit_error_write_task(output_agent: &Arc<Mutex<OutputAgent>>, error: Re
 pub type RequestFuture<RET, RET_ERROR> = BoxFuture<RequestResult<RET, RET_ERROR>, futures::Canceled>;
 
 
-impl EndpointOutput {
+impl Endpoint {
     
     /// Send a (non-notification) request
     pub fn send_request<
@@ -613,7 +617,7 @@ mod tests_ {
         
         // --- Endpoint:
         let output = vec![];
-        let mut eh = EndpointHandler::create_with_output(WriteLineMessageWriter(output), new(request_handler));
+        let mut eh = EndpointHandler::create_with_writer(WriteLineMessageWriter(output), new(request_handler));
         
         // Test ResponseCompletable - missing id for notification method
         let completable = ResponseCompletable::new(None, new(|_| {}));
@@ -635,16 +639,16 @@ mod tests_ {
         // Test send_request
         
         let params = new_sample_params(123, 66);
-        eh.output.send_notification("sample_fn", params.clone()).unwrap();
+        eh.endpoint.send_notification("sample_fn", params.clone()).unwrap();
         
-        eh.output.send_notification("async_method", params.clone()).unwrap();
+        eh.endpoint.send_notification("async_method", params.clone()).unwrap();
         
-        assert_eq!(*eh.output.id_counter.lock().unwrap(), 0);
+        assert_eq!(*eh.endpoint.id_counter.lock().unwrap(), 0);
         
         let my_method = "sample_fn".to_string();
-        let future : RequestFuture<String, ()> = eh.output.send_request(&my_method, params.clone()).unwrap();
+        let future : RequestFuture<String, ()> = eh.endpoint.send_request(&my_method, params.clone()).unwrap();
         
-        assert_eq!(*eh.output.id_counter.lock().unwrap(), 1);
+        assert_eq!(*eh.endpoint.id_counter.lock().unwrap(), 1);
         
         // Test future is not completed
         let mut spawn = futures::task::spawn(future);
@@ -661,7 +665,7 @@ mod tests_ {
         let result : Result<RequestResult<String, ()>, _> = spawn.wait_future();
         assert_eq!(result.unwrap(), RequestResult::MethodResult(Ok(expected_result)));
         
-        eh.output.shutdown();
+        eh.endpoint.shutdown();
     }
     
     pub fn noop_unpark() -> Arc<Unpark> {
