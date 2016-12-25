@@ -91,7 +91,7 @@ pub fn test_client_server_communication() {
     assert_eq!(result, "Got params: x: 10, y: 20.".to_string());
     
     // shutdown endpoint
-    endpoint.shutdown();
+    endpoint.shutdown_and_join();
 }
 
 fn run_server_listener(listener: TcpListener) {

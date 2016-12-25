@@ -72,7 +72,9 @@ use output_agent::OutputAgentTask;
 /// 
 /// This type has (mostly) handle semantics: it can be copied freely, used in multiple threads.
 ///
-/// TODO: review and clarify shutdown semantics
+/// However, someone must be responsible for requesting an explicit shutdown of the Endpoint.
+/// If this is not done, the OutputAgent will panic once the last reference is dropped.
+///
 #[derive(Clone)]
 pub struct Endpoint {
     id_counter : Arc<Mutex<u64>>,
@@ -96,7 +98,11 @@ impl Endpoint {
         self.output_agent.lock().unwrap().is_shutdown()
     }
     
-    pub fn shutdown(&self) {
+    pub fn request_shutdown(&self) {
+        self.output_agent.lock().unwrap().request_shutdown();
+    }
+    
+    pub fn shutdown_and_join(&self) {
         self.output_agent.lock().unwrap().shutdown_and_join();
     }
     
@@ -142,24 +148,25 @@ impl EndpointHandler {
     
     /// Run a message read loop with given message reader.
     /// Loop will be terminated only when there is an error reading a message.
-    ///
-    /// TODO: also provide a way for message handling to terminate the loop? 
-    pub fn run_message_read_loop<MSG_READER : ?Sized>(self, input: &mut MSG_READER) 
+    pub fn run_message_read_loop<MSG_READER : ?Sized>(mut self, input: &mut MSG_READER) 
         -> GResult<()>
     where
         MSG_READER : MessageReader
     {
-        let mut endpoint = self;
         loop {
             let message = match input.read_next() {
                 Ok(ok) => { ok } 
                 Err(error) => { 
-                    endpoint.endpoint.shutdown();
+                    self.endpoint.request_shutdown();
                     return Err(error);
                 }
             };
             
-            endpoint.handle_incoming_message(&message);
+            self.handle_incoming_message(&message);
+            
+            if self.endpoint.is_shutdown() {
+                return Ok(())
+            }
         }
     }
     
@@ -205,7 +212,7 @@ impl EndpointHandler {
 
 pub trait RequestHandler {
     fn handle_request(
-        &mut self, request_method: &str, request_params: RequestParams, completable: ResponseCompletable
+        &mut self, method_name: &str, request_params: RequestParams, completable: ResponseCompletable
     );
 }
 
@@ -665,7 +672,7 @@ mod tests_ {
         let result : Result<RequestResult<String, ()>, _> = spawn.wait_future();
         assert_eq!(result.unwrap(), RequestResult::MethodResult(Ok(expected_result)));
         
-        eh.endpoint.shutdown();
+        eh.endpoint.request_shutdown();
     }
     
     pub fn noop_unpark() -> Arc<Unpark> {
