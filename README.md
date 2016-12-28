@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/RustDT/rustdt-json_rpc.svg?branch=master)](https://travis-ci.org/RustDT/rustdt-json_rpc)
+
 # RustDT JSON-RPC
 
 A JSON-RPC library for Rust. 
