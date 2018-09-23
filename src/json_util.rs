@@ -134,7 +134,7 @@ impl<DE> SerdeJsonDeserializerHelper<DE> {
     }
 }
 
-impl<DE : serde::Deserializer> 
+impl<'de, DE : serde::Deserializer<'de>> 
     JsonDeserializerHelper<DE::Error> for SerdeJsonDeserializerHelper<DE> 
 {
     fn new_error(&self, error_message: &str) -> DE::Error {
@@ -174,13 +174,13 @@ pub mod test_util {
         serde_json::to_string(value).unwrap()
     }
     
-    pub fn from_json<T: Deserialize>(json: &str) -> T {
+    pub fn from_json<'de, T: Deserialize<'de>>(json: &'de str) -> T {
         serde_json::from_str(json).unwrap()
     }
 
     pub fn test_serde<T>(obj: &T) 
         -> (T, String)
-        where T : Serialize + Deserialize + PartialEq + Debug
+        where for<'de> T : Serialize + Deserialize<'de> + PartialEq + Debug
     {
         let json = to_json(obj);
         let reserialized : T = from_json(&json);
@@ -188,8 +188,8 @@ pub mod test_util {
         (reserialized, json)
     }
     
-    pub fn test_error_de<T>(json: &str, expected_err_contains: &str) 
-        where T : Deserialize + PartialEq + Debug
+    pub fn test_error_de<'de, T>(json: &'de str, expected_err_contains: &str) 
+        where T : Deserialize<'de> + PartialEq + Debug
     {
         let res = serde_json::from_str::<T>(json).unwrap_err();
         check_err_contains(res, expected_err_contains);
@@ -197,7 +197,7 @@ pub mod test_util {
     
     pub fn test_serde_expecting<T>(obj: &T, expected_value: &Value) 
         -> Value
-        where T : Serialize + Deserialize + PartialEq + Debug
+        where for<'de> T : Serialize + Deserialize<'de> + PartialEq + Debug
     {
         let json = test_serde(obj).1;
         

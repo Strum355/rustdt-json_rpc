@@ -275,7 +275,7 @@ impl ResponseCompletable {
         self, params: RequestParams, method_handler: METHOD
     ) 
     where 
-        PARAMS : serde::Deserialize, 
+        for<'de> PARAMS : serde::Deserialize<'de>, 
         RET : serde::Serialize, 
         RET_ERROR : serde::Serialize,
         METHOD : FnOnce(PARAMS, MethodCompletable<RET, RET_ERROR>),
@@ -288,7 +288,7 @@ impl ResponseCompletable {
         self, params: RequestParams, sync_method_handler: METHOD
     ) 
     where 
-        PARAMS : serde::Deserialize, 
+        for<'de> PARAMS : serde::Deserialize<'de>, 
         RET : serde::Serialize, 
         RET_ERROR : serde::Serialize ,
         METHOD : FnOnce(PARAMS) -> MethodResult<RET, RET_ERROR>,
@@ -303,7 +303,7 @@ impl ResponseCompletable {
         self, params: RequestParams, method_handler: METHOD
     ) 
     where 
-        PARAMS : serde::Deserialize, 
+        for<'de> PARAMS : serde::Deserialize<'de>, 
         METHOD : FnOnce(PARAMS),
     {
         let mc = MethodCompletable::<(), ()>::new(self);
@@ -318,7 +318,7 @@ impl ResponseCompletable {
         self, params: RequestParams, sync_method_handler: METHOD
     ) 
     where 
-        PARAMS : serde::Deserialize, 
+        for<'de> PARAMS : serde::Deserialize<'de>, 
         METHOD : FnOnce(PARAMS),
     {
         self.handle_notification_with(params, |params| {
@@ -359,7 +359,7 @@ impl<
         method_fn: METHOD
     )
     where 
-        PARAMS : serde::Deserialize, 
+        for<'de> PARAMS : serde::Deserialize<'de>, 
         RET : serde::Serialize, 
         RET_ERROR : serde::Serialize,
         METHOD : FnOnce(PARAMS, Self),
@@ -421,11 +421,14 @@ impl Endpoint {
     
     /// Send a (non-notification) request
     pub fn send_request<
+        RET,
+        RET_ERROR,
         PARAMS : serde::Serialize, 
-        RET: serde::Deserialize, 
-        RET_ERROR : serde::Deserialize, 
     >(&mut self, method_name: &str, params: PARAMS) 
         -> GResult<RequestFuture<RET, RET_ERROR>> 
+    where
+        for<'de> RET: serde::Deserialize<'de>, 
+        for<'de> RET_ERROR : serde::Deserialize<'de>, 
     {
         let (completable, future) = futures::oneshot::<ResponseResult>();
         let future : futures::Oneshot<ResponseResult> = future;

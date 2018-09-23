@@ -78,10 +78,10 @@ impl<RET, RET_ERROR> RequestResult<RET, RET_ERROR> {
     }
 }
 
-impl<
-    RET : serde::Deserialize, 
-    RET_ERROR : serde::Deserialize, 
-> From<ResponseResult> for RequestResult<RET, RET_ERROR> 
+impl<RET, RET_ERROR> From<ResponseResult> for RequestResult<RET, RET_ERROR> 
+where
+    for<'de> RET : serde::Deserialize<'de>, 
+    for<'de> RET_ERROR : serde::Deserialize<'de>, 
 {
     fn from(response_result : ResponseResult) -> Self 
     {

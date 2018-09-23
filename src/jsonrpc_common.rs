@@ -45,17 +45,17 @@ impl serde::Serialize for Id {
     }
 }
 
-impl serde::Deserialize for Id {
+impl<'de> serde::Deserialize<'de> for Id {
     fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
-        where DE: serde::Deserializer 
+        where DE: serde::Deserializer<'de> 
     {
-        deserializer.deserialize(IdDeserializeVisitor)
+        deserializer.deserialize_any(IdDeserializeVisitor)
     }
 }
 
 struct IdDeserializeVisitor;
 
-impl Visitor for IdDeserializeVisitor {
+impl<'de> Visitor<'de> for IdDeserializeVisitor {
     type Value = Id;
     
     fn visit_unit<E>(self) -> Result<Self::Value, E>
@@ -152,9 +152,9 @@ impl serde::Serialize for RequestError {
     }
 }
 
-impl serde::Deserialize for RequestError {
+impl<'de> serde::Deserialize<'de> for RequestError {
     fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
-        where DE: serde::Deserializer 
+        where DE: serde::Deserializer<'de> 
     {
         let mut helper = SerdeJsonDeserializerHelper::new(&deserializer);
         let value : Value = try!(Value::deserialize(deserializer));

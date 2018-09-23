@@ -75,9 +75,9 @@ impl serde::Serialize for Request {
     }
 }
 
-impl serde::Deserialize for Request {
+impl<'de> serde::Deserialize<'de> for Request {
     fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
-        where DE: serde::Deserializer 
+        where DE: serde::Deserializer<'de> 
     {
         let mut helper = SerdeJsonDeserializerHelper::new(&deserializer);
         let value = try!(Value::deserialize(deserializer));
@@ -140,17 +140,17 @@ pub fn to_jsonrpc_params(params: Value) -> GResult<RequestParams> {
     }
 }
 
-impl serde::Deserialize for RequestParams {
+impl<'de> serde::Deserialize<'de> for RequestParams {
     fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
-        where DE: serde::Deserializer 
+        where DE: serde::Deserializer<'de> 
     {
-        deserializer.deserialize(RequestParams_DeserializeVisitor)
+        deserializer.deserialize_any(RequestParams_DeserializeVisitor)
     }
 }
 
 struct RequestParams_DeserializeVisitor;
 
-impl Visitor for RequestParams_DeserializeVisitor {
+impl<'de> Visitor<'de> for RequestParams_DeserializeVisitor {
     type Value = RequestParams;
     
     fn visit_unit<E>(self) -> Result<Self::Value, E> 
@@ -158,18 +158,24 @@ impl Visitor for RequestParams_DeserializeVisitor {
         Ok(RequestParams::None)
     }
     
-    fn visit_seq<V>(self, visitor: V) -> Result<Self::Value, V::Error>
-        where V: de::SeqVisitor,
+    fn visit_seq<V>(self, mut access: V) -> Result<Self::Value, V::Error>
+        where V: de::SeqAccess<'de>,
     {
-        let values = try!(de::impls::VecVisitor::new().visit_seq(visitor));
+        let mut values = Vec::new();
+        while let Some(value) = access.next_element()? {
+            values.push(value);
+        }
         Ok(RequestParams::Array(values))
     }
 
-    fn visit_map<V>(self, visitor: V) -> Result<Self::Value, V::Error>
-        where V: de::MapVisitor,
+    fn visit_map<V>(self, mut access: V) -> Result<Self::Value, V::Error>
+        where V: de::MapAccess<'de>,
     {
-        let values = try!(de::impls::BTreeMapVisitor::new().visit_map(visitor));
-        Ok(RequestParams::Object(values.into_iter().collect()))
+        let mut values = serde_json::value::Map::new();
+        while let Some((key, value)) = access.next_entry()? {
+            values.insert(key, value);
+        }
+        Ok(RequestParams::Object(values))
     }
     
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result

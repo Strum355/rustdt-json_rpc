@@ -46,9 +46,9 @@ impl serde::Serialize for Message {
     }
 }
 
-impl serde::Deserialize for Message {
+impl<'de> serde::Deserialize<'de> for Message {
     fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
-        where DE: serde::Deserializer 
+        where DE: serde::Deserializer<'de> 
     {
         let mut helper = SerdeJsonDeserializerHelper::new(&deserializer);
         let value = try!(Value::deserialize(deserializer));

@@ -24,13 +24,13 @@ pub enum PointField {
 }
 
 
-impl serde::Deserialize for PointField {
+impl<'de> serde::Deserialize<'de> for PointField {
     fn deserialize<D>(deserializer: D) -> Result<PointField, D::Error>
-        where D: serde::de::Deserializer
+        where D: serde::de::Deserializer<'de>
     {
         struct PointFieldVisitor;
 
-        impl serde::de::Visitor for PointFieldVisitor {
+        impl<'de> serde::de::Visitor<'de> for PointFieldVisitor {
             type Value = PointField;
 
             fn visit_str<E>(self, value: &str) -> Result<PointField, E>
@@ -49,13 +49,13 @@ impl serde::Deserialize for PointField {
             }
         }
 
-        deserializer.deserialize(PointFieldVisitor)
+        deserializer.deserialize_any(PointFieldVisitor)
     }
 }
 
-impl serde::Deserialize for Point {
+impl<'de> serde::Deserialize<'de> for Point {
     fn deserialize<D>(deserializer: D) -> Result<Point, D::Error>
-        where D: serde::de::Deserializer
+        where D: serde::de::Deserializer<'de>
     {
         static FIELDS: &'static [&'static str] = &["x", "y"];
         deserializer.deserialize_struct("Point", FIELDS, PointVisitor)
@@ -64,19 +64,19 @@ impl serde::Deserialize for Point {
 
 struct PointVisitor;
 
-impl serde::de::Visitor for PointVisitor {
+impl<'de> serde::de::Visitor<'de> for PointVisitor {
     type Value = Point;
 
     fn visit_map<V>(self, mut visitor: V) -> Result<Point, V::Error>
-        where V: serde::de::MapVisitor
+        where V: serde::de::MapAccess<'de>
     {
         let mut x = None;
         let mut y = None;
 
         loop {
-            match try!(visitor.visit_key()) {
-                Some(PointField::X) => { x = Some(try!(visitor.visit_value())); }
-                Some(PointField::Y) => { y = Some(try!(visitor.visit_value())); }
+            match try!(visitor.next_key()) {
+                Some(PointField::X) => { x = Some(try!(visitor.next_value())); }
+                Some(PointField::Y) => { y = Some(try!(visitor.next_value())); }
                 None => { break; }
             }
         }

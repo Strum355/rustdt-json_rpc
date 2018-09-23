@@ -32,13 +32,14 @@ impl MapRequestHandler {
          MapRequestHandler { method_handlers : HashMap::new() }
     }
     
-    pub fn add_notification<
-        PARAMS : serde::Deserialize + 'static,
-    >(
+    pub fn add_notification<PARAMS>(
         &mut self,
         method_name: &'static str, 
         method_fn: Box<Fn(PARAMS)>
-    ) {
+    )
+    where
+        for<'de> PARAMS : serde::Deserialize<'de> + 'static,
+    {
         let req_handler : Box<RpcMethodHandler> = new(move |params, completable| {
             completable.sync_handle_notification(params, &*method_fn);
         });
@@ -46,14 +47,17 @@ impl MapRequestHandler {
     }
     
     pub fn add_request<
-        PARAMS : serde::Deserialize + 'static, 
+        PARAMS,
         RET : serde::Serialize + 'static, 
         RET_ERROR : serde::Serialize + 'static
     >(
         &mut self,
         method_name: &'static str, 
         method_fn: Box<Fn(PARAMS) -> MethodResult<RET, RET_ERROR>>
-    ) {
+    )
+    where
+        for<'de> PARAMS : serde::Deserialize<'de> + 'static, 
+    {
         let req_handler : Box<RpcMethodHandler> = new(move |params, completable| {
             completable.sync_handle_request(params, &*method_fn);
         });
