@@ -7,6 +7,7 @@
 
 
 use serde;
+use serde::ser::SerializeStruct;
 use serde_json;
 use serde_json::Value;
 
@@ -60,34 +61,34 @@ impl ResponseResult {
 
 
 impl serde::Serialize for Response {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: serde::Serializer
     {
         let elem_count = 3;
         let mut state = try!(serializer.serialize_struct("Response", elem_count));
         {
-            try!(serializer.serialize_struct_elt(&mut state, "jsonrpc", "2.0"));
-            try!(serializer.serialize_struct_elt(&mut state, "id", &self.id));
+            try!(state.serialize_field("jsonrpc", "2.0"));
+            try!(state.serialize_field("id", &self.id));
             
             match self.result_or_error {
                 ResponseResult::Result(ref value) => {
-                    try!(serializer.serialize_struct_elt(&mut state, "result", &value));
+                    try!(state.serialize_field("result", &value));
                 }
                 ResponseResult::Error(ref json_rpc_error) => {
-                    try!(serializer.serialize_struct_elt(&mut state, "error", &json_rpc_error)); 
+                    try!(state.serialize_field("error", &json_rpc_error)); 
                 }
             }
         }
-        serializer.serialize_struct_end(state)
+        state.end()
     }
 }
 
 impl serde::Deserialize for Response {
-    fn deserialize<DE>(deserializer: &mut DE) -> Result<Self, DE::Error>
+    fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
         where DE: serde::Deserializer 
     {
-        let mut helper = SerdeJsonDeserializerHelper(deserializer);
-        let value = try!(Value::deserialize(helper.0));
+        let mut helper = SerdeJsonDeserializerHelper::new(&deserializer);
+        let value = try!(Value::deserialize(deserializer));
         let mut json_obj = try!(helper.as_Object(value));
         
         try!(check_jsonrpc_field(&mut helper, &mut json_obj));
@@ -121,10 +122,9 @@ pub mod response_tests {
     use json_util::test_util::*;
     
     use serde_json::Value;
-    use serde_json::builder::ObjectBuilder;
 
     pub fn sample_json_obj(foo: u32) -> Value {
-        ObjectBuilder::new().insert("foo", foo).build()
+        json!({"foo": foo})
     }
     
     #[test]
@@ -150,42 +150,38 @@ pub mod response_tests {
 
         
         let response = Response::new_result(Id::Null, sample_json_obj(100));
-        test_serde_expecting(&response, &ObjectBuilder::new()
-            .insert("jsonrpc", "2.0")
-            .insert("id", Id::Null)
-            .insert("result", sample_json_obj(100))
-            .build()
-        ); 
+        test_serde_expecting(&response, &json!({
+            "jsonrpc": "2.0",
+            "id": Id::Null,
+            "result": sample_json_obj(100),
+        })); 
         
         let response = Response::new_result(Id::Number(123), sample_json_obj(200));
-        test_serde_expecting(&response, &ObjectBuilder::new()
-            .insert("jsonrpc", "2.0")
-            .insert("id", 123)
-            .insert("result", sample_json_obj(200))
-            .build()
-        );
+        test_serde_expecting(&response, &json!({
+            "jsonrpc": "2.0",
+            "id": 123,
+            "result": sample_json_obj(200),
+        }));
         
         let response = Response::new_result(Id::Null, sample_json_obj(200));
-        test_serde_expecting(&response, &ObjectBuilder::new()
-            .insert("jsonrpc", "2.0")
-            .insert("id", Value::Null)
-            .insert("result", sample_json_obj(200))
-            .build()
-        );
+        test_serde_expecting(&response, &json!({
+            "jsonrpc": "2.0",
+            "id": Value::Null,
+            "result": sample_json_obj(200),
+        }));
         
         let response = Response::new_error(Id::String("321".to_string()), RequestError{
             code: 5, message: "msg".to_string(), data: Some(sample_json_obj(300))
         });
-        test_serde_expecting(&response, &ObjectBuilder::new()
-            .insert("jsonrpc", "2.0")
-            .insert("id", "321")
-            .insert("error", unwrap_object_builder(ObjectBuilder::new()
-                .insert("code", 5)
-                .insert("message", "msg")
-                .insert("data", sample_json_obj(300))
-            ))
-            .build()
-        );
+        test_serde_expecting(&response, &json!({
+            "jsonrpc": "2.0",
+            "id": "321",
+            "error": {
+                "code": 5,
+                "message": "msg",
+                "data": sample_json_obj(300),
+            },
+        }));
         
     }
 }

@@ -9,11 +9,12 @@ use std::fmt;
 
 use serde;
 use serde::de::Visitor;
-use serde::Error;
+use serde::ser::SerializeStruct;
 
 use serde_json::Value;
 use serde_json;
 use json_util::*;
+use json_util::JsonDeserializerHelper;
 
 
 
@@ -33,7 +34,7 @@ pub fn parse_jsonrpc_id(id: Value) -> JsonRpcParseResult<Option<Id>> {
 pub enum Id { Number(u64), String(String), Null, }
 
 impl serde::Serialize for Id {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: serde::Serializer,
     {
         match *self {
@@ -45,7 +46,7 @@ impl serde::Serialize for Id {
 }
 
 impl serde::Deserialize for Id {
-    fn deserialize<DE>(deserializer: &mut DE) -> Result<Self, DE::Error>
+    fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
         where DE: serde::Deserializer 
     {
         deserializer.deserialize(IdDeserializeVisitor)
@@ -57,19 +58,24 @@ struct IdDeserializeVisitor;
 impl Visitor for IdDeserializeVisitor {
     type Value = Id;
     
-    fn visit_unit<E>(&mut self) -> Result<Self::Value, E> where E: Error,
+    fn visit_unit<E>(self) -> Result<Self::Value, E>
     {
         Ok(Id::Null)
     }
     
-    fn visit_u64<E>(&mut self, value: u64) -> Result<Self::Value, E> where E: Error,
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
     {
         Ok(Id::Number(value))
     }
     
-    fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error,
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
     {
         Ok(Id::String(value.to_string()))
+    }
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result
+    {
+        formatter.write_str("an ID")
     }
 }
 
@@ -130,28 +136,28 @@ pub fn error_JSON_RPC_InvalidResponse<T: fmt::Display>(error: T) -> RequestError
 }
 
 impl serde::Serialize for RequestError {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: serde::Serializer
     {
         let elem_count = 3;
         let mut state = try!(serializer.serialize_struct("RequestError", elem_count)); 
         {
-            try!(serializer.serialize_struct_elt(&mut state, "code", self.code));
-            try!(serializer.serialize_struct_elt(&mut state, "message", &self.message));
+            try!(state.serialize_field("code", &self.code));
+            try!(state.serialize_field("message", &self.message));
             if let Some(ref data) = self.data {
-                try!(serializer.serialize_struct_elt(&mut state, "data", data));
+                try!(state.serialize_field("data", data));
             }
         }
-        serializer.serialize_struct_end(state)
+        state.end()
     }
 }
 
 impl serde::Deserialize for RequestError {
-    fn deserialize<DE>(deserializer: &mut DE) -> Result<Self, DE::Error>
+    fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
         where DE: serde::Deserializer 
     {
-        let mut helper = SerdeJsonDeserializerHelper(deserializer);
-        let value : Value = try!(Value::deserialize(helper.0));
+        let mut helper = SerdeJsonDeserializerHelper::new(&deserializer);
+        let value : Value = try!(Value::deserialize(deserializer));
         let mut json_obj = try!(helper.as_Object(value));
         
         let code = try!(helper.obtain_i64(&mut json_obj, "code"));

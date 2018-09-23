@@ -5,26 +5,17 @@
 // This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::collections::BTreeMap;
 use std::fmt;
+use std::marker::PhantomData;
 
 use serde;
 
 use serde_json::Map;
 use serde_json::Value;
-use serde_json::builder::ObjectBuilder;
 
 pub type JsonObject = Map<String, Value>;
 
 /* ----------------- deserialize helpers ----------------- */
-
-pub fn new_object() -> JsonObject {
-    BTreeMap::new()
-}
-
-pub fn unwrap_object_builder(ob: ObjectBuilder) -> JsonObject {
-    unwrap_object(ob.build())
-}
 
 pub fn unwrap_object(value: Value) -> JsonObject {
     match value {
@@ -79,16 +70,20 @@ pub trait JsonDeserializerHelper<ERR> {
     
     fn as_u32(&mut self, value: Value) -> Result<u32, ERR> {
         match value {
-            Value::I64(num) => Ok(num as u32), // FIXME: check for truncation
-            Value::U64(num) => Ok(num as u32), // FIXME: check for truncation
+            Value::Number(num) => match num.as_u64() {
+                Some(num) => Ok(num as u32), // FIXME: check for truncation
+                None => Err(self.new_error(&format!("Value `{}` is not an Integer.", num))),
+            },
             _ => Err(self.new_error(&format!("Value `{}` is not an Integer.", value))),
         }
     }
     
     fn as_i64(&mut self, value: Value) -> Result<i64, ERR> {
         match value {
-            Value::I64(num) => Ok(num),
-            Value::U64(num) => Ok(num as i64), // FIXME: check for truncation
+            Value::Number(num) => match num.as_i64() {
+                Some(num) => Ok(num),
+                None => Err(self.new_error(&format!("Value `{}` is not an Integer.", num))),
+            },
             _ => Err(self.new_error(&format!("Value `{}` is not an Integer.", value))),
         }
     }
@@ -131,10 +126,16 @@ pub trait JsonDeserializerHelper<ERR> {
 
 }
 
-pub struct SerdeJsonDeserializerHelper<DE>(pub DE);
+pub struct SerdeJsonDeserializerHelper<DE>(PhantomData<DE>);
 
-impl<'a, DE : serde::Deserializer> 
-    JsonDeserializerHelper<DE::Error> for SerdeJsonDeserializerHelper<&'a mut DE> 
+impl<DE> SerdeJsonDeserializerHelper<DE> {
+    pub fn new(_deserializer: &DE) -> SerdeJsonDeserializerHelper<DE> {
+        SerdeJsonDeserializerHelper(PhantomData)
+    }
+}
+
+impl<DE : serde::Deserializer> 
+    JsonDeserializerHelper<DE::Error> for SerdeJsonDeserializerHelper<DE> 
 {
     fn new_error(&self, error_message: &str) -> DE::Error {
         new_de_error(error_message.into())
@@ -145,14 +146,14 @@ pub fn to_de_error<DISPLAY, DE_ERROR>(display: DISPLAY)
     -> DE_ERROR   
 where 
     DISPLAY: fmt::Display,
-    DE_ERROR: serde::Error, 
+    DE_ERROR: serde::de::Error, 
 {
     DE_ERROR::custom(format!("{}", display))
 }
 
 pub fn new_de_error<DE_ERROR>(message: String) 
     -> DE_ERROR
-    where DE_ERROR: serde::Error 
+    where DE_ERROR: serde::de::Error 
 {
     DE_ERROR::custom(message)
 }

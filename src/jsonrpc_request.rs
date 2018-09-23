@@ -5,11 +5,12 @@
 // This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::fmt;
 
 use serde;
 use serde::de::Visitor;
 use serde::de;
-use serde::Error;
+use serde::ser::SerializeStruct;
 
 use serde_json;
 use serde_json::Value;
@@ -55,7 +56,7 @@ impl Request {
 }
 
 impl serde::Serialize for Request {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: serde::Serializer
     {
         // TODO: need to investigate if elem_count = 4 is actually valid when id is missing
@@ -63,23 +64,23 @@ impl serde::Serialize for Request {
         let elem_count = 4;
         let mut state = try!(serializer.serialize_struct("Request", elem_count)); 
         {
-            try!(serializer.serialize_struct_elt(&mut state, "jsonrpc", "2.0"));
+            try!(state.serialize_field("jsonrpc", "2.0"));
             if let Some(ref id) = self.id {
-                try!(serializer.serialize_struct_elt(&mut state, "id", id));
+                try!(state.serialize_field("id", id));
             }
-            try!(serializer.serialize_struct_elt(&mut state, "method", &self.method));
-            try!(serializer.serialize_struct_elt(&mut state, "params", &self.params));
+            try!(state.serialize_field("method", &self.method));
+            try!(state.serialize_field("params", &self.params));
         }
-        serializer.serialize_struct_end(state)
+        state.end()
     }
 }
 
 impl serde::Deserialize for Request {
-    fn deserialize<DE>(deserializer: &mut DE) -> Result<Self, DE::Error>
+    fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
         where DE: serde::Deserializer 
     {
-        let mut helper = SerdeJsonDeserializerHelper(deserializer);
-        let value = try!(Value::deserialize(helper.0));
+        let mut helper = SerdeJsonDeserializerHelper::new(&deserializer);
+        let value = try!(Value::deserialize(deserializer));
         let mut json_obj = try!(helper.as_Object(value));
         
         try!(check_jsonrpc_field(&mut helper, &mut json_obj));
@@ -119,7 +120,7 @@ impl RequestParams {
 }
 
 impl serde::Serialize for RequestParams {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: serde::Serializer
     {
         match *self {
@@ -140,7 +141,7 @@ pub fn to_jsonrpc_params(params: Value) -> GResult<RequestParams> {
 }
 
 impl serde::Deserialize for RequestParams {
-    fn deserialize<DE>(deserializer: &mut DE) -> Result<Self, DE::Error>
+    fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
         where DE: serde::Deserializer 
     {
         deserializer.deserialize(RequestParams_DeserializeVisitor)
@@ -152,26 +153,29 @@ struct RequestParams_DeserializeVisitor;
 impl Visitor for RequestParams_DeserializeVisitor {
     type Value = RequestParams;
     
-    fn visit_unit<E>(&mut self) -> Result<Self::Value, E> 
-        where E: Error,
+    fn visit_unit<E>(self) -> Result<Self::Value, E> 
     {
         Ok(RequestParams::None)
     }
     
-    fn visit_seq<V>(&mut self, visitor: V) -> Result<Self::Value, V::Error>
+    fn visit_seq<V>(self, visitor: V) -> Result<Self::Value, V::Error>
         where V: de::SeqVisitor,
     {
         let values = try!(de::impls::VecVisitor::new().visit_seq(visitor));
         Ok(RequestParams::Array(values))
     }
 
-    fn visit_map<V>(&mut self, visitor: V) -> Result<Self::Value, V::Error>
+    fn visit_map<V>(self, visitor: V) -> Result<Self::Value, V::Error>
         where V: de::MapVisitor,
     {
         let values = try!(de::impls::BTreeMapVisitor::new().visit_map(visitor));
-        Ok(RequestParams::Object(values))
+        Ok(RequestParams::Object(values.into_iter().collect()))
     }
     
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result
+    {
+        formatter.write_str("params")
+    }
 }
 
 
@@ -187,16 +191,15 @@ pub mod request_tests {
     use jsonrpc_common::*;
     
     use serde_json::Value;
-    use serde_json::builder::ObjectBuilder;
 
 
     #[test]
     fn test__RequestParams() {
         
-        let sample_obj = unwrap_object_builder(ObjectBuilder::new().insert("xxx", 123));
+        let sample_obj = json!({"xxx": 123}).as_object().unwrap().clone();
         let sample_string = Value::String("blah".into());
         
-        test_serde__RequestParams(RequestParams::Object(sample_obj.clone()));
+        test_serde__RequestParams(RequestParams::Object(sample_obj));
         test_serde__RequestParams(RequestParams::Array(vec![sample_string.clone(), sample_string]));
         test_serde__RequestParams(RequestParams::None);
     }
@@ -214,10 +217,10 @@ pub mod request_tests {
     #[test]
     fn test_Request() {
         
-        let sample_params = unwrap_object_builder(ObjectBuilder::new()
-            .insert("param", "2.0")
-            .insert("foo", 123)
-        );
+        let sample_params = json!({
+            "param": "2.0",
+            "foo": 123,
+        }).as_object().unwrap().clone();
         
         // Test invalid JSON
         test_error_de::<Request>(
@@ -258,7 +261,7 @@ pub mod request_tests {
         // --- Test serialization ---
         
         // basic Request
-        let request = Request::new(1, "myMethod".to_string(), sample_params.clone());
+        let request = Request::new(1, "myMethod".to_string(), sample_params);
         test_serde(&request);
         
         // Test basic Request, no params

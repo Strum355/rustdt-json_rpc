@@ -36,7 +36,7 @@ impl From<Request> for Message {
 }
 
 impl serde::Serialize for Message {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: serde::Serializer
     {
         match *self {
@@ -47,11 +47,11 @@ impl serde::Serialize for Message {
 }
 
 impl serde::Deserialize for Message {
-    fn deserialize<DE>(deserializer: &mut DE) -> Result<Self, DE::Error>
+    fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
         where DE: serde::Deserializer 
     {
-        let mut helper = SerdeJsonDeserializerHelper(deserializer);
-        let value = try!(Value::deserialize(helper.0));
+        let mut helper = SerdeJsonDeserializerHelper::new(&deserializer);
+        let value = try!(Value::deserialize(deserializer));
         let json_obj = try!(helper.as_Object(value));
         
         if json_obj.contains_key("method") {

@@ -3,7 +3,10 @@
 
 #![cfg(test)]
 
+use std::fmt;
+
 extern crate serde;
+use serde::ser::SerializeStruct;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Point {
@@ -22,7 +25,7 @@ pub enum PointField {
 
 
 impl serde::Deserialize for PointField {
-    fn deserialize<D>(deserializer: &mut D) -> Result<PointField, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<PointField, D::Error>
         where D: serde::de::Deserializer
     {
         struct PointFieldVisitor;
@@ -30,7 +33,7 @@ impl serde::Deserialize for PointField {
         impl serde::de::Visitor for PointFieldVisitor {
             type Value = PointField;
 
-            fn visit_str<E>(&mut self, value: &str) -> Result<PointField, E>
+            fn visit_str<E>(self, value: &str) -> Result<PointField, E>
                 where E: serde::de::Error
             {
                 match value {
@@ -39,6 +42,11 @@ impl serde::Deserialize for PointField {
                     _ => Err(serde::de::Error::custom("expected x or y")),
                 }
             }
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result
+            {
+                formatter.write_str("x or y")
+            }
         }
 
         deserializer.deserialize(PointFieldVisitor)
@@ -46,7 +54,7 @@ impl serde::Deserialize for PointField {
 }
 
 impl serde::Deserialize for Point {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Point, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Point, D::Error>
         where D: serde::de::Deserializer
     {
         static FIELDS: &'static [&'static str] = &["x", "y"];
@@ -59,7 +67,7 @@ struct PointVisitor;
 impl serde::de::Visitor for PointVisitor {
     type Value = Point;
 
-    fn visit_map<V>(&mut self, mut visitor: V) -> Result<Point, V::Error>
+    fn visit_map<V>(self, mut visitor: V) -> Result<Point, V::Error>
         where V: serde::de::MapVisitor
     {
         let mut x = None;
@@ -75,31 +83,34 @@ impl serde::de::Visitor for PointVisitor {
 
         let x = match x {
             Some(x) => x,
-            None => try!(visitor.missing_field("x")),
+            None => return Err(<V::Error as serde::de::Error>::missing_field("x")),
         };
 
         let y = match y {
             Some(y) => y,
-            None => try!(visitor.missing_field("y")),
+            None => return Err(<V::Error as serde::de::Error>::missing_field("y")),
         };
 
-        try!(visitor.end());
-
         Ok(Point{ x: x, y: y })
+    }
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result
+    {
+        formatter.write_str("a point")
     }
 }
 
 
 impl serde::Serialize for Point {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: serde::Serializer,
     {
         let elem_count = 2;
         let mut state = try!(serializer.serialize_struct("Point", elem_count)); 
         {
-            try!(serializer.serialize_struct_elt(&mut state, "x", &self.x));
-            try!(serializer.serialize_struct_elt(&mut state, "y", &self.y));
+            try!(state.serialize_field("x", &self.x));
+            try!(state.serialize_field("y", &self.y));
         }
-        serializer.serialize_struct_end(state)
+        state.end()
     }
 }

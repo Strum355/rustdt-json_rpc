@@ -24,7 +24,7 @@ https://github.com/RustDT/rustdt-json_rpc/blob/master/tests/example.rs
 #![allow(non_camel_case_types)]
 
 #[macro_use] extern crate log;
-extern crate serde_json;
+#[macro_use] extern crate serde_json;
 extern crate serde;
 
 extern crate rustdt_util as util;
@@ -459,7 +459,7 @@ impl Endpoint {
     >(&self, id: Option<Id>, method_name: &str, params: PARAMS) 
         -> GResult<()> 
     {
-        let params_value = serde_json::to_value(&params);
+        let params_value = serde_json::to_value(&params)?;
         let params = jsonrpc_request::to_jsonrpc_params(params_value)?;
         
         let rpc_request = Request { id: id.clone(), method : method_name.into(), params : params };
@@ -593,12 +593,12 @@ mod tests_ {
         let request = Request::new(1, "sample_fn".to_string(), JsonObject::new());
         invoke_method(&mut request_handler, &request.method, request.params, 
             |result| 
-            check_request(result.unwrap(), ResponseResult::Error(error_JSON_RPC_InvalidParams(r#"missing field "x""#)))
+            check_request(result.unwrap(), ResponseResult::Error(error_JSON_RPC_InvalidParams(r#"missing field `x`"#)))
         );
         
         // test with valid params
         let params_value = match serde_json::to_value(&new_sample_params(10, 20)) {
-            Value::Object(object) => object, 
+            Ok(Value::Object(object)) => object, 
             _ => panic!("Not serialized into Object") 
         };
         let request = Request::new(1, "sample_fn".to_string(), params_value);
