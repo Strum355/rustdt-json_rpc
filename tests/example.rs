@@ -119,7 +119,8 @@ fn handle_server_connection(stream: TcpStream) {
 fn init_logger(level: LogLevelFilter) {
     // Prepare log, set info as default log level 
     let mut builder = LogBuilder::new();
-    builder.filter(None, level);
+    //builder
+    //builder.filter(None, level);
     
     if let Ok(rustlog_env_var) = std::env::var("RUST_LOG") {
         builder.parse(&rustlog_env_var);

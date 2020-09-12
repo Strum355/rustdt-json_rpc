@@ -36,7 +36,7 @@ impl<FN : FnOnce(AgentInnerRunner)> AgentRunnable for FN {
 
 /* ----------------- Output_Agent ----------------- */
 
-pub type OutputAgentTask = Box<Fn(&mut MessageWriter) + Send>;
+pub type OutputAgentTask = Box<dyn Fn(&mut dyn MessageWriter) + Send>;
 
 pub enum OutputAgentMessage {
     Shutdown,

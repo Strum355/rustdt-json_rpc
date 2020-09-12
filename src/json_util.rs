@@ -92,14 +92,14 @@ pub trait JsonDeserializerHelper<ERR> {
     fn obtain_String(&mut self, json_map : &mut JsonObject, key: &str) 
         -> Result<String, ERR> 
     {
-        let value = try!(self.obtain_Value(json_map, key));
+        let value = self.obtain_Value(json_map, key)?;
         self.as_String(value)
     }
     
     fn obtain_Object(&mut self, json_map : &mut JsonObject, key: &str) 
         -> Result<JsonObject, ERR> 
     {
-        let value = try!(self.obtain_Value(json_map, key));
+        let value = self.obtain_Value(json_map, key)?;
         self.as_Object(value)
     }
     
@@ -113,14 +113,14 @@ pub trait JsonDeserializerHelper<ERR> {
     fn obtain_u32(&mut self, json_map: &mut JsonObject, key: &str) 
         -> Result<u32, ERR> 
     {
-        let value = try!(self.obtain_Value(json_map, key));
+        let value = self.obtain_Value(json_map, key)?;
         self.as_u32(value)
     }
     
     fn obtain_i64(&mut self, json_map: &mut JsonObject, key: &str) 
         -> Result<i64, ERR> 
     {
-        let value = try!(self.obtain_Value(json_map, key));
+        let value = self.obtain_Value(json_map, key)?;
         self.as_i64(value)
     }
 

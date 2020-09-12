@@ -23,7 +23,7 @@ pub struct ReadLineMessageReader<T: io::BufRead>(pub T);
 impl<T : io::BufRead> MessageReader for ReadLineMessageReader<T> {
     fn read_next(&mut self) -> Result<String, GError> {
         let mut result = String::new();
-        try!(self.0.read_line(&mut result));
+        self.0.read_line(&mut result)?;
         Ok(result)
     }
 }
@@ -38,9 +38,9 @@ pub struct WriteLineMessageWriter<T: io::Write>(pub T);
 
 impl<T : io::Write> MessageWriter for WriteLineMessageWriter<T> {
     fn write_message(&mut self, msg: &str) -> Result<(), GError> {
-        try!(self.0.write_all(msg.as_bytes()));
-        try!(self.0.write_all(&['\n' as u8]));
-        try!(self.0.flush());
+        self.0.write_all(msg.as_bytes())?;
+        self.0.write_all(&['\n' as u8])?;
+        self.0.flush()?;
         Ok(())
     }
 }

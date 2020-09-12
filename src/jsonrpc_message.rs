@@ -51,15 +51,15 @@ impl<'de> serde::Deserialize<'de> for Message {
         where DE: serde::Deserializer<'de> 
     {
         let mut helper = SerdeJsonDeserializerHelper::new(&deserializer);
-        let value = try!(Value::deserialize(deserializer));
-        let json_obj = try!(helper.as_Object(value));
+        let value = Value::deserialize(deserializer)?;
+        let json_obj = helper.as_Object(value)?;
         
         if json_obj.contains_key("method") {
             let request = serde_json::from_value::<Request>(Value::Object(json_obj));
-            Ok(Message::Request(try!(request.map_err(to_de_error))))
+            Ok(Message::Request(request.map_err(to_de_error)?))
         } else {
             let response = serde_json::from_value::<Response>(Value::Object(json_obj));
-            Ok(Message::Response(try!(response.map_err(to_de_error))))
+            Ok(Message::Response(response.map_err(to_de_error)?))
         }
     }
 }
@@ -71,12 +71,9 @@ pub mod message_tests {
     use super::*;
     use jsonrpc_common::*;
     
-    use json_util::*;
     use json_util::test_util::*;
     
-    use jsonrpc_response::*;
     use jsonrpc_response::response_tests::sample_json_obj;
-    use jsonrpc_request::*;
     
     #[test]
     fn test_Message() {

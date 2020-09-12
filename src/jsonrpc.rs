@@ -49,9 +49,9 @@ use std::result::Result;
 use std::sync::Arc;
 use std::sync::Mutex;
  
-use futures::Future;
 use futures::BoxFuture;
 use futures::Complete;
+use futures::Future;
 
 use service_util::MessageReader;
 use service_util::MessageWriter;
@@ -119,12 +119,12 @@ impl Endpoint {
 /// See also: Endpoint
 pub struct EndpointHandler {
     pub endpoint : Endpoint,
-    pub request_handler : Box<RequestHandler>,
+    pub request_handler : Box<dyn RequestHandler>,
 }
 
 impl EndpointHandler {
     
-    pub fn create_with_writer<WRITER>(msg_writer: WRITER, request_handler: Box<RequestHandler>) 
+    pub fn create_with_writer<WRITER>(msg_writer: WRITER, request_handler: Box<dyn RequestHandler>) 
         -> EndpointHandler
     where 
         WRITER : MessageWriter + 'static + Send, 
@@ -133,14 +133,14 @@ impl EndpointHandler {
         Self::create_with_output_agent(output_agent, request_handler)
     }
     
-    pub fn create_with_output_agent(output_agent: OutputAgent, request_handler: Box<RequestHandler>) 
+    pub fn create_with_output_agent(output_agent: OutputAgent, request_handler: Box<dyn RequestHandler>) 
         -> EndpointHandler
     {
         let output = Endpoint::start_with(output_agent);
         Self::create(output, request_handler)
     }
     
-    pub fn create(endpoint: Endpoint, request_handler: Box<RequestHandler>) 
+    pub fn create(endpoint: Endpoint, request_handler: Box<dyn RequestHandler>) 
         -> EndpointHandler
     {
         EndpointHandler { endpoint : endpoint, request_handler: request_handler }
@@ -236,12 +236,12 @@ impl RequestHandler for NullRequestHandler {
 pub struct ResponseCompletable {
     completion_flag: FinishedFlag,
     id: Option<Id>,
-    on_response: Box<FnMut(Option<Response>) + Send>,
+    on_response: Box<dyn FnMut(Option<Response>) + Send>,
 }
 
 impl ResponseCompletable {
     
-    pub fn new(id: Option<Id>, on_response: Box<FnMut(Option<Response>) + Send>) -> ResponseCompletable {
+    pub fn new(id: Option<Id>, on_response: Box<dyn FnMut(Option<Response>) + Send>) -> ResponseCompletable {
         ResponseCompletable { 
             completion_flag : FinishedFlag(false), id : id, on_response: on_response
         }
@@ -431,7 +431,7 @@ impl Endpoint {
         for<'de> RET_ERROR : serde::Deserialize<'de>, 
     {
         let (completable, future) = futures::oneshot::<ResponseResult>();
-        let future : futures::Oneshot<ResponseResult> = future;
+        let future : Box<futures::Oneshot<ResponseResult>> = Box::new(future);
         
         let id = self.next_id();
         
@@ -504,7 +504,6 @@ mod tests_sample_types;
 mod tests_ {
     
     use super::*;
-    use util::core::*;
     use util::tests::*;
     use tests_sample_types::*;
     use map_request_handler::MapRequestHandler;
@@ -514,11 +513,7 @@ mod tests_ {
     use serde_json::Value;
     use serde_json;
     
-    use jsonrpc_common::*;
-    use jsonrpc_response::*;
-    use jsonrpc_request::*;
     use jsonrpc_request::request_tests::check_error;
-    use method_types::*;
     
     use json_util::JsonObject;
     use json_util::test_util::to_json;
@@ -558,7 +553,7 @@ mod tests_ {
     }
         
     fn invoke_method<FN>(
-        req_handler: &mut RequestHandler, 
+        req_handler: &mut dyn RequestHandler, 
         method_name: &str, 
         request_params: RequestParams, 
         mut and_then: FN
@@ -566,7 +561,7 @@ mod tests_ {
     where 
         FN : FnMut(Option<ResponseResult>) + 'static + Send
     {
-        let on_response : Box<FnMut(Option<Response>) + Send> = new(move |response: Option<Response>| {
+        let on_response : Box<dyn FnMut(Option<Response>) + Send> = new(move |response: Option<Response>| {
             and_then(response.and_then(|e| Some(e.result_or_error)));
         });
         

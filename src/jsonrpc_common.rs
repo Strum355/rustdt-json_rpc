@@ -140,12 +140,12 @@ impl serde::Serialize for RequestError {
         where S: serde::Serializer
     {
         let elem_count = 3;
-        let mut state = try!(serializer.serialize_struct("RequestError", elem_count)); 
+        let mut state = serializer.serialize_struct("RequestError", elem_count)?; 
         {
-            try!(state.serialize_field("code", &self.code));
-            try!(state.serialize_field("message", &self.message));
+            state.serialize_field("code", &self.code)?;
+            state.serialize_field("message", &self.message)?;
             if let Some(ref data) = self.data {
-                try!(state.serialize_field("data", data));
+                state.serialize_field("data", data)?;
             }
         }
         state.end()
@@ -157,11 +157,11 @@ impl<'de> serde::Deserialize<'de> for RequestError {
         where DE: serde::Deserializer<'de> 
     {
         let mut helper = SerdeJsonDeserializerHelper::new(&deserializer);
-        let value : Value = try!(Value::deserialize(deserializer));
-        let mut json_obj = try!(helper.as_Object(value));
+        let value : Value = Value::deserialize(deserializer)?;
+        let mut json_obj = helper.as_Object(value)?;
         
-        let code = try!(helper.obtain_i64(&mut json_obj, "code"));
-        let message = try!(helper.obtain_String(&mut json_obj, "message"));
+        let code = helper.obtain_i64(&mut json_obj, "code")?;
+        let message = helper.obtain_String(&mut json_obj, "message")?;
         
         let data = json_obj.remove("data"); 
         

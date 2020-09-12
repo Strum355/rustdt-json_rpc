@@ -81,9 +81,9 @@ impl<'de> serde::de::Visitor<'de> for PointVisitor {
         let mut y = None;
 
         loop {
-            match try!(visitor.next_key()) {
-                Some(PointField::X) => { x = Some(try!(visitor.next_value())); }
-                Some(PointField::Y) => { y = Some(try!(visitor.next_value())); }
+            match visitor.next_key()? {
+                Some(PointField::X) => { x = Some(visitor.next_value())?; }
+                Some(PointField::Y) => { y = Some(visitor.next_value())?; }
                 None => { break; }
             }
         }
@@ -113,10 +113,10 @@ impl serde::Serialize for Point {
         where S: serde::Serializer,
     {
         let elem_count = 2;
-        let mut state = try!(serializer.serialize_struct("Point", elem_count)); 
+        let mut state = serializer.serialize_struct("Point", elem_count)?; 
         {
-            try!(state.serialize_field("x", &self.x));
-            try!(state.serialize_field("y", &self.y));
+            state.serialize_field("x", &self.x)?;
+            state.serialize_field("y", &self.y)?;
         }
         state.end()
     }

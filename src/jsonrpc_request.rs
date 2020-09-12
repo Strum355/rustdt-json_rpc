@@ -26,7 +26,7 @@ pub fn check_jsonrpc_field<ERR, HELPER>(helper: &mut HELPER, json_obj: &mut Json
 where 
     HELPER: JsonDeserializerHelper<ERR>, 
 {
-    let jsonrpc = try!(helper.obtain_String(json_obj, "jsonrpc"));
+    let jsonrpc = helper.obtain_String(json_obj, "jsonrpc")?;
     if jsonrpc != "2.0" {
         return Err(helper.new_error(r#"Property `jsonrpc` is not "2.0". "#))
     };
@@ -62,14 +62,14 @@ impl serde::Serialize for Request {
         // TODO: need to investigate if elem_count = 4 is actually valid when id is missing
         // serializing to JSON seems to not be a problem, but there might be other issues
         let elem_count = 4;
-        let mut state = try!(serializer.serialize_struct("Request", elem_count)); 
+        let mut state = serializer.serialize_struct("Request", elem_count)?; 
         {
-            try!(state.serialize_field("jsonrpc", "2.0"));
+            state.serialize_field("jsonrpc", "2.0")?;
             if let Some(ref id) = self.id {
-                try!(state.serialize_field("id", id));
+                state.serialize_field("id", id)?;
             }
-            try!(state.serialize_field("method", &self.method));
-            try!(state.serialize_field("params", &self.params));
+            state.serialize_field("method", &self.method)?;
+            state.serialize_field("params", &self.params)?;
         }
         state.end()
     }
@@ -80,17 +80,17 @@ impl<'de> serde::Deserialize<'de> for Request {
         where DE: serde::Deserializer<'de> 
     {
         let mut helper = SerdeJsonDeserializerHelper::new(&deserializer);
-        let value = try!(Value::deserialize(deserializer));
-        let mut json_obj = try!(helper.as_Object(value));
+        let value = Value::deserialize(deserializer)?;
+        let mut json_obj = helper.as_Object(value)?;
         
-        try!(check_jsonrpc_field(&mut helper, &mut json_obj));
+        check_jsonrpc_field(&mut helper, &mut json_obj)?;
         
         let id = json_obj.remove("id");
-        let id = try!(id.map_or(Ok(None), |value| serde_json::from_value(value).map_err(to_de_error)));
-        let method = try!(helper.obtain_String(&mut json_obj, "method"));
-        let params = try!(helper.obtain_Value(&mut json_obj, "params"));
+        let id = id.map_or(Ok(None), |value| serde_json::from_value(value).map_err(to_de_error))?;
+        let method = helper.obtain_String(&mut json_obj, "method")?;
+        let params = helper.obtain_Value(&mut json_obj, "params")?;
         
-        let params = try!(to_jsonrpc_params(params).map_err(to_de_error));
+        let params = to_jsonrpc_params(params).map_err(to_de_error)?;
         
         Ok(Request { id : id, method : method, params : params })
     }

@@ -20,7 +20,7 @@ use jsonrpc_request::*;
 
 /* -----------------  MapRequestHandler  ----------------- */
 
-pub type RpcMethodHandler = Fn(RequestParams, ResponseCompletable);
+pub type RpcMethodHandler = dyn Fn(RequestParams, ResponseCompletable);
 
 pub struct MapRequestHandler {
     pub method_handlers : HashMap<String, Box<RpcMethodHandler>>,
@@ -35,7 +35,7 @@ impl MapRequestHandler {
     pub fn add_notification<PARAMS>(
         &mut self,
         method_name: &'static str, 
-        method_fn: Box<Fn(PARAMS)>
+        method_fn: Box<dyn Fn(PARAMS)>
     )
     where
         for<'de> PARAMS : serde::Deserialize<'de> + 'static,
@@ -53,7 +53,7 @@ impl MapRequestHandler {
     >(
         &mut self,
         method_name: &'static str, 
-        method_fn: Box<Fn(PARAMS) -> MethodResult<RET, RET_ERROR>>
+        method_fn: Box<dyn Fn(PARAMS) -> MethodResult<RET, RET_ERROR>>
     )
     where
         for<'de> PARAMS : serde::Deserialize<'de> + 'static, 
